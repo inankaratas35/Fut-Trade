@@ -1,6 +1,7 @@
 -- Set up custom types
 CREATE TYPE user_role AS ENUM ('free', 'trade_plus', 'admin');
 CREATE TYPE risk_level AS ENUM ('Low', 'Medium', 'High');
+CREATE TYPE online_status AS ENUM ('Online', 'Do Not Disturb', 'Invisible');
 
 -- Profiles Table
 CREATE TABLE profiles (
@@ -8,6 +9,7 @@ CREATE TABLE profiles (
   username TEXT UNIQUE NOT NULL,
   avatar_url TEXT,
   role user_role DEFAULT 'free'::user_role NOT NULL,
+  online_status online_status DEFAULT 'Online'::online_status NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -67,6 +69,39 @@ CREATE TABLE evolutions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Squads Table
+CREATE TABLE squads (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  formation TEXT NOT NULL,
+  players JSONB NOT NULL DEFAULT '{}'::jsonb,
+  is_shared BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Chats Table
+CREATE TABLE chats (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Chat Participants
+CREATE TABLE chat_participants (
+  chat_id UUID REFERENCES chats(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  PRIMARY KEY (chat_id, user_id)
+);
+
+-- Messages Table
+CREATE TABLE messages (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  chat_id UUID REFERENCES chats(id) ON DELETE CASCADE NOT NULL,
+  sender_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Setup Row Level Security (RLS)
 
 -- Profiles: Anyone can read, users can update their own
@@ -103,3 +138,22 @@ CREATE POLICY "Authenticated users can insert comments" ON post_comments FOR INS
 -- Evolutions: Anyone can read, only admins can write
 ALTER TABLE evolutions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Evolutions viewable by everyone" ON evolutions FOR SELECT USING (true);
+
+-- Squads: Users can read shared or own, can write own
+ALTER TABLE squads ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Shared squads viewable by everyone" ON squads FOR SELECT USING (is_shared = true OR auth.uid() = user_id);
+CREATE POLICY "Users can insert own squads" ON squads FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own squads" ON squads FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own squads" ON squads FOR DELETE USING (auth.uid() = user_id);
+
+-- Chats and Messages: Only participants can read/write
+ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Participants can view chats" ON chats FOR SELECT USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_id = id AND user_id = auth.uid()));
+
+ALTER TABLE chat_participants ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Participants can view chat_participants" ON chat_participants FOR SELECT USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM chat_participants cp WHERE cp.chat_id = chat_participants.chat_id AND cp.user_id = auth.uid()));
+CREATE POLICY "Users can insert chat_participants" ON chat_participants FOR INSERT WITH CHECK (true); -- Simplified for mock, ideally trigger or specific rules
+
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Participants can view messages" ON messages FOR SELECT USING (EXISTS (SELECT 1 FROM chat_participants WHERE chat_id = messages.chat_id AND user_id = auth.uid()));
+CREATE POLICY "Participants can insert messages" ON messages FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM chat_participants WHERE chat_id = messages.chat_id AND user_id = auth.uid()) AND sender_id = auth.uid());

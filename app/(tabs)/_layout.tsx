@@ -29,9 +29,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="squad-builder"
+        options={{
+          title: 'Squads',
+        }}
+      />
+      <Tabs.Screen
         name="community"
         options={{
           title: 'Community',
+        }}
+      />
+      <Tabs.Screen
+        name="chats"
+        options={{
+          title: 'Chats',
         }}
       />
       <Tabs.Screen

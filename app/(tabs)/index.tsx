@@ -1,9 +1,42 @@
 import { View, Text, ScrollView } from 'react-native';
 
+import { TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
+
 export default function DashboardScreen() {
   return (
     <ScrollView className="flex-1 bg-gaming-dark p-4">
-      <Text className="text-2xl font-bold text-gaming-neon mb-4">FC 27 Tasks & SBCs</Text>
+      <Text className="text-2xl font-bold text-white mb-2">Welcome Back, Trader!</Text>
+      <Text className="text-gray-400 mb-6">FC 27 Ultimate Team Hub</Text>
+
+      {/* Quick Links / Widgets */}
+      <View className="flex-row justify-between mb-6">
+        <TouchableOpacity
+          className="flex-1 bg-gaming-slate p-4 rounded-xl mr-2 items-center border border-gray-700"
+          onPress={() => router.push('/(tabs)/evolutions')}
+        >
+          <Text className="text-2xl mb-2">🧬</Text>
+          <Text className="text-gaming-neon font-bold text-center">Evolutions</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          className="flex-1 bg-gaming-slate p-4 rounded-xl mx-1 items-center border border-gray-700"
+          onPress={() => router.push('/(tabs)/squad-builder')}
+        >
+          <Text className="text-2xl mb-2">⚽</Text>
+          <Text className="text-gaming-gold font-bold text-center">Squads</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          className="flex-1 bg-gaming-slate p-4 rounded-xl ml-2 items-center border border-gray-700"
+          onPress={() => router.push('/(tabs)/trade-plus')}
+        >
+          <Text className="text-2xl mb-2">📈</Text>
+          <Text className="text-green-400 font-bold text-center">Market</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text className="text-xl font-bold text-gaming-neon mb-4">Active SBCs</Text>
 
       <View className="bg-gaming-slate p-4 rounded-lg mb-4">
         <View className="flex-row justify-between items-center mb-2">
